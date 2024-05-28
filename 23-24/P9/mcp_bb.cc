@@ -8,6 +8,7 @@
 #include <chrono>
 #include <iomanip>
 #include <queue>
+#include <string>
 
 using namespace std;
 
@@ -49,8 +50,8 @@ int mcp_it_matrix(const vector<vector<int>> &map, vector<vector<int>> &iterative
 
     iterative[0][0] = map[0][0];
 
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < m; ++j) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) {
             if (i > 0) {
                 iterative[i][j] = min(iterative[i][j], iterative[i-1][j] + map[i][j]);
             }
@@ -74,15 +75,15 @@ vector<vector<int>> optimistic_bound(const vector<vector<int>> &maze) {
     vector<int> min_rows(n, INF);
     vector<int> min_cols(m, INF);
 
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < m; ++j) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) {
             min_rows[i] = min(min_rows[i], maze[i][j]);
             min_cols[j] = min(min_cols[j], maze[i][j]);
         }
     }
 
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < m; ++j) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) {
             if (i < n - 1) optimistic[i][j] = min(optimistic[i][j], min_rows[i + 1]);
             if (j < m - 1) optimistic[i][j] = min(optimistic[i][j], min_cols[j + 1]);
         }
@@ -91,69 +92,58 @@ vector<vector<int>> optimistic_bound(const vector<vector<int>> &maze) {
     return optimistic;
 }
 
-void print_path(const vector<vector<bool>> path){
-    for (int i = 0; i < path.size(); ++i) {
-        for (int j = 0; j < path[0].size(); ++j) {   
-            cout<<path[i][j];
-        }
-        cout << endl;
-    }
-}
+struct Node {
+    int x, y, current_cost;
+    vector<string> directions;
+    vector<vector<bool>> path;
 
-void mcp_bb(const vector<vector<int>> &maze, vector<vector<int>> &iterative, vector<vector<int>> &optimistic, vector<vector<bool>> &visited, vector<vector<bool>> &best_path, vector<vector<bool>> &current_path, vector<string> &best_directions, vector<string> &current_directions, int x, int y, int &best_cost, int &pesimistic) {
+    Node(int x, int y, int cost, int n, int m)
+        : x(x), y(y), current_cost(cost), path(n, vector<bool>(m, false)) {}
+};
+
+// Modificar la función mcp_bb
+void mcp_bb(const vector<vector<int>> &maze, vector<vector<int>> &iterative, vector<vector<int>> &optimistic, vector<vector<bool>> &best_path, vector<string> &best_directions, int &best_cost, int &pesimistic) {
     int n = maze.size();
     int m = maze[0].size();
 
     enum Step {N, NE, E, SE, S, SW, W, NW};
 
-    using Node = tuple<int, int, int, int>;
-    priority_queue<Node> pq;
-    int current_cost = maze[0][0];
-    pq.emplace(-optimistic[0][0], x, y, current_cost);
+    auto comp = [](const Node &a, const Node &b) {
+        return a.current_cost + a.directions.size() > b.current_cost + b.directions.size();
+    };
+
+    priority_queue<Node, vector<Node>, decltype(comp)> pq(comp);
+    Node start(0, 0, maze[0][0], n, m);
+    start.path[0][0] = true;
+    pq.push(start);
 
     while (!pq.empty()) {
-        auto [ignore, x, y, current_cost] = pq.top();
+        Node node = pq.top();
         pq.pop();
 
-        if (x == n - 1 && y == m - 1) {
+        if (node.x == n - 1 && node.y == m - 1) {
             leaf++;
-            current_path[x][y] = true;
-            if (current_cost <= best_cost) {
-                best_cost = current_cost;
-                best_path = current_path;
-                best_directions = current_directions;
-                break;
-            }else{
-                current_path[x][y] = false;
+            if (node.current_cost <= best_cost) {
+                best_cost = node.current_cost;
+                best_path = node.path;
+                best_directions = node.directions;
             }
-        }
-
-        current_path[x][y] = true;
-
-        int pesimistic_bound = current_cost + pesimistic;
-        if (pesimistic_bound < best_cost) {
-            best_cost = pesimistic_bound;
-        }
-
-        if(current_cost < iterative[x][y]){
-            iterative[x][y] = current_cost;
-        }
-        else if (current_cost > iterative[x][y]) {
-            not_promising++;
-            current_path[x][y] = false;
             continue;
         }
 
-        if (current_cost + optimistic[x][y] > best_cost) {
+        if (node.current_cost < iterative[node.x][node.y]) {
+            iterative[node.x][node.y] = node.current_cost;
+        } else if (node.current_cost > iterative[node.x][node.y]) {
             not_promising++;
-            current_path[x][y] = false;
             continue;
         }
 
-        cout<<"ANTES DEL FOR"<<endl;
-        print_path(current_path);
+        if (node.current_cost + optimistic[node.x][node.y] > best_cost) {
+            not_promising++;
+            continue;
+        }
 
-        for (int i = N; i <= NW; ++i) {
+        for (int i = N; i <= NW; i++) {
             visit++;
             int incx, incy;
             string direction;
@@ -169,18 +159,17 @@ void mcp_bb(const vector<vector<int>> &maze, vector<vector<int>> &iterative, vec
                 case NW: incx = -1; incy = -1; direction = "NW"; break;
             }
 
-            int newx = x + incx;
-            int newy = y + incy;
+            int newx = node.x + incx;
+            int newy = node.y + incy;
 
-            if (inside_matrix(newx, newy, n, m) && !visited[newx][newy]) {
-                visited[newx][newy] = true;
-                current_path[newx][newy] = true;
+            if (inside_matrix(newx, newy, n, m) && !node.path[newx][newy]) {
+                Node next(newx, newy, node.current_cost + maze[newx][newy], n, m);
+                next.directions = node.directions;
+                next.directions.push_back(direction);
+                next.path = node.path;
+                next.path[newx][newy] = true;
+                pq.push(next);
                 explored++;
-                current_directions.push_back(direction);
-                cout<<direction<<endl;
-                print_path(current_path);
-                pq.emplace(-optimistic[newx][newy], newx, newy, current_cost + maze[newx][newy]);
-                visited[newx][newy] = false;
             } else {
                 unfeasible++;
             }
@@ -190,10 +179,9 @@ void mcp_bb(const vector<vector<int>> &maze, vector<vector<int>> &iterative, vec
 
 void mcp_bb_parser(const vector<vector<int>> &maze, const vector<vector<bool>> best_path) {
     int cost = 0;
-    for (int i = 0; i < maze.size(); ++i) {
-        for (int j = 0; j < maze[0].size(); ++j) {
-            
-            if (best_path[i][j] == true) {
+    for (int i = 0; i < maze.size(); i++) {
+        for (int j = 0; j < maze[0].size(); j++) {
+            if (best_path[i][j]) {
                 cout << "x";
                 cost += maze[i][j];
             } else {
@@ -202,7 +190,6 @@ void mcp_bb_parser(const vector<vector<int>> &maze, const vector<vector<bool>> b
         }
         cout << endl;
     }
-
     cout << cost << endl;
 }
 
@@ -222,20 +209,17 @@ void print_directions(const vector<string> &directions) {
 }
 
 void output(bool p, bool p2D, const vector<vector<int>> &map, int r, int c) {
-    vector<vector<bool>> visited(r, vector<bool>(c, false));
     vector<vector<int>> iterative(r, vector<int>(c, INF));
     int shortest_path_iterative = mcp_it_matrix(map, iterative);
     int pesimistic = shortest_path_iterative;
 
     vector<vector<bool>> best_path(r, vector<bool>(c, false));
-    vector<vector<bool>> current_path(r, vector<bool>(c, false));
     vector<string> best_directions;
-    vector<string> current_directions;
 
     auto start = chrono::steady_clock::now();
     vector<vector<int>> optimistic = optimistic_bound(map);
     int best_cost = iterative[r-1][c-1];
-    mcp_bb(map, iterative, optimistic, visited, best_path, current_path, best_directions, current_directions, 0, 0, best_cost, pesimistic);
+    mcp_bb(map, iterative, optimistic, best_path, best_directions, best_cost, pesimistic);
     auto end = chrono::steady_clock::now();
 
     chrono::duration<double> duration = end - start;
@@ -259,7 +243,7 @@ int main(int argc, char *argv[]) {
     bool p2D = false;
     bool p = false;
 
-    for (int i = 1; i < argc; ++i) {
+    for (int i = 1; i < argc; i++) {
         string arg = argv[i];
         if (arg == "-p") {
             p = true;
