@@ -227,12 +227,12 @@ void output(bool p, bool p2D, const vector<vector<int>> &map, int r, int c) {
     mcp_bb(map, iterative, optimistic, best_path, best_directions, best_cost, pesimistic);
     auto end = chrono::steady_clock::now();
 
-    chrono::duration<double> duration = end - start;
-    double seconds = duration.count();
+    chrono::duration<double, milli> duration = end - start; 
+    double milliseconds = duration.count();
 
     cout << best_cost << endl;
     cout << visit << " " << explored << " " << leaf << " " << unfeasible << " " << not_promising << " " << promising_but_discarded << " " << best_solution_updated_from_leafs << " " << best_solution_updated_from_pessimistic_bound << endl;
-    cout << fixed << setprecision(3) << seconds << endl;
+    cout << fixed << setprecision(3) << milliseconds << endl;
 
     if (p2D) {
         mcp_bb_parser(map, best_path);
