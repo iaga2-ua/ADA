@@ -13,6 +13,7 @@
 
 using namespace std;
 
+auto start = chrono::steady_clock::now();
 const int INF = numeric_limits<int>::max();
 int visit = 0, explored = 0, leaf = 0, unfeasible = 0, not_promising = 0;
 int promising_but_discarded = 0, best_solution_updated_from_leafs = 0, best_solution_updated_from_pessimistic_bound = 0;
@@ -221,17 +222,16 @@ void output(bool p, bool p2D, const vector<vector<int>> &map, int r, int c) {
     vector<vector<bool>> best_path(r, vector<bool>(c, false));
     vector<string> best_directions;
 
-    auto start = chrono::steady_clock::now();
     vector<vector<int>> optimistic = optimistic_bound(map);
     int best_cost = iterative[r-1][c-1];
     mcp_bb(map, iterative, optimistic, best_path, best_directions, best_cost, pesimistic);
-    auto end = chrono::steady_clock::now();
-
-    chrono::duration<double, milli> duration = end - start; 
-    double milliseconds = duration.count();
 
     cout << best_cost << endl;
     cout << visit << " " << explored << " " << leaf << " " << unfeasible << " " << not_promising << " " << promising_but_discarded << " " << best_solution_updated_from_leafs << " " << best_solution_updated_from_pessimistic_bound << endl;
+    
+    auto end = chrono::steady_clock::now();
+    chrono::duration<double, milli> duration = end - start; 
+    double milliseconds = duration.count();
     cout << fixed << setprecision(3) << milliseconds << endl;
 
     if (p2D) {
