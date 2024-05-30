@@ -1,4 +1,3 @@
-// Iván Álvarez García DNI: 49623492A
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -144,7 +143,7 @@ void mcp_bb(const vector<vector<int>> &maze, vector<vector<int>> &iterative, vec
             continue;
         }
 
-        if (node.current_cost + optimistic[node.x][node.y] > best_cost) {
+        if (node.current_cost + optimistic[node.x][node.y] >= best_cost) {
             promising_but_discarded++;
             continue;
         }
