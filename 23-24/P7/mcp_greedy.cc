@@ -30,115 +30,85 @@ vector<vector<int>> matrix(string file_name, int &r, int &c){
     return mat;
 }
 
-void mcp_greedy_parser(const vector< vector<string>> &parser, int min){
-    int n = parser.size();
-    int m = parser[0].size();
-    for (int i=0; i<=n; i++){
-        for(int j=0; j<=m; j++)
-            cout<<parser[i][j];
-        cout<<endl;
+void mcp_greedy_parser(const vector<vector<string>>& parser, int minValue) {
+    for (const auto& row : parser) {
+        for (const auto& cell : row) {
+            cout << cell;
+        }
+        cout << endl;
     }
-
-    cout<<min<<endl;
-
+    cout << minValue << endl;
 }
 
-int mcp_greedy(const vector< vector<int>> &matriz, int rows, int cols, vector< vector<string>> &parser ,bool origen){
+int mcp_greedy(const vector<vector<int>>& matrix, int rows, int cols, vector<vector<string>>& parser, bool fromOrigin) {
+    int totalCost;
+    int r, c;
     
-    
-    if(origen){
-        
-        int sol=matriz[0][0], aux, r=0, c=0;
-         parser[0][0] = "x";
+    if (fromOrigin) {
+        r = 0;
+        c = 0;
+        totalCost = matrix[0][0];
+        parser[0][0] = "x";
 
-        while(r<=rows && c<=cols){
-
-            if(c==cols && r==rows) break;  
-            
-            if(c==cols){ 
-                sol+= matriz[r+1][c];  
-                 parser[r+1][c] = "x";
-                r++;
-            }
-            else if(r==rows){ 
-                sol+= matriz[r][c+1];  
-                 parser[r][c+1] = "x";
+        while (r < rows || c < cols) {
+            if (r == rows) {
+                totalCost += matrix[r][c + 1];
+                parser[r][c + 1] = "x";
                 c++;
-            }
-            else{   
-                aux = min(matriz[r+1][c+1], min(
-                        matriz[r+1][c],
-                        matriz[r][c+1]
-                    )
-                );
-                sol += aux;
-
-                if(aux==matriz[r+1][c+1]){
-                     parser[r+1][c+1] = "x";
-                    r++; c++;
-                }
-                else if(aux==matriz[r+1][c]){
-                     parser[r+1][c] = "x";
+            } else if (c == cols) {
+                totalCost += matrix[r + 1][c];
+                parser[r + 1][c] = "x";
+                r++;
+            } else {
+                int nextCost = min(matrix[r + 1][c], min(matrix[r][c + 1], matrix[r + 1][c + 1]));
+                totalCost += nextCost;
+                if (nextCost == matrix[r + 1][c]) {
+                    parser[r + 1][c] = "x";
                     r++;
-                }
-                else{
-                     parser[r][c+1] = "x";
+                } else if (nextCost == matrix[r][c + 1]) {
+                    parser[r][c + 1] = "x";
+                    c++;
+                } else {
+                    parser[r + 1][c + 1] = "x";
+                    r++;
                     c++;
                 }
             }
         }
+    } else {
+        r = rows;
+        c = cols;
+        totalCost = matrix[r][c];
+        parser[r][c] = "x";
 
-        return sol;   
-    } 
-
-
-
-
-    else{
-        
-    int sol=matriz[rows][cols], aux, r=rows, c=cols;
-    parser[rows][cols] = "x";
-
-    while(r>=0 && c>=0){
-
-        if(c==0 && r==0) break;   
-        if(c==0){ 
-            sol+= matriz[r-1][c];   
-             parser[r-1][c] = "x";
-            r--;
-        }
-        else if(r==0){ 
-            sol+= matriz[r][c-1];  
-             parser[r][c-1] = "x";
-            c--;
-        }
-        else{    
-            aux = min(matriz[r-1][c-1], min(
-                    matriz[r-1][c],
-                    matriz[r][c-1]
-                )
-            );
-            sol += aux;
-
-             if(aux==matriz[r-1][c-1]){
-                 parser[r-1][c-1] = "x";
-                r--; c--;
-            }
-            else if(aux==matriz[r][c-1]){
-                 parser[r][c-1] = "x";
+        while (r > 0 || c > 0) {
+            if (r == 0) {
+                totalCost += matrix[r][c - 1];
+                parser[r][c - 1] = "x";
                 c--;
-            }
-            else{
-                 parser[r-1][c] = "x";
+            } else if (c == 0) {
+                totalCost += matrix[r - 1][c];
+                parser[r - 1][c] = "x";
                 r--;
+            } else {
+                int nextCost = min(matrix[r - 1][c], min(matrix[r][c - 1], matrix[r - 1][c - 1]));
+                totalCost += nextCost;
+                if (nextCost == matrix[r - 1][c]) {
+                    parser[r - 1][c] = "x";
+                    r--;
+                } else if (nextCost == matrix[r][c - 1]) {
+                    parser[r][c - 1] = "x";
+                    c--;
+                } else {
+                    parser[r - 1][c - 1] = "x";
+                    r--;
+                    c--;
+                }
             }
         }
     }
 
-    return sol;    
-
-    }
-
+    return totalCost;
 }
 
 void output(bool p, const vector<vector<int>> &map, int r, int c){
