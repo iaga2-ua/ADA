@@ -15,6 +15,7 @@ using namespace std;
 
 const int INF = numeric_limits<int>::max();
 int visit = 0, explored = 0, leaf = 0, unfeasible = 0, not_promising = 0;
+int promising_but_discarded = 0, best_solution_updated_from_leafs = 0, best_solution_updated_from_pessimistic_bound = 0;
 
 void usage() {
     cerr << "Usage:" << endl;
@@ -102,7 +103,6 @@ struct Node {
         : x(x), y(y), current_cost(cost), path(n, vector<bool>(m, false)) {}
 };
 
-// Modificar la función mcp_bb
 void mcp_bb(const vector<vector<int>> &maze, vector<vector<int>> &iterative, vector<vector<int>> &optimistic, vector<vector<bool>> &best_path, vector<string> &best_directions, int &best_cost, int &pesimistic) {
     int n = maze.size();
     int m = maze[0].size();
@@ -119,6 +119,7 @@ void mcp_bb(const vector<vector<int>> &maze, vector<vector<int>> &iterative, vec
     pq.push(start);
 
     while (!pq.empty()) {
+        visit++;
         Node node = pq.top();
         pq.pop();
 
@@ -128,19 +129,22 @@ void mcp_bb(const vector<vector<int>> &maze, vector<vector<int>> &iterative, vec
                 best_cost = node.current_cost;
                 best_path = node.path;
                 best_directions = node.directions;
+                best_solution_updated_from_leafs++;
+                explored++;
             }
             continue;
         }
 
         if (node.current_cost < iterative[node.x][node.y]) {
             iterative[node.x][node.y] = node.current_cost;
+            best_solution_updated_from_pessimistic_bound++;
         } else if (node.current_cost > iterative[node.x][node.y]) {
             not_promising++;
             continue;
         }
 
         if (node.current_cost + optimistic[node.x][node.y] > best_cost) {
-            not_promising++;
+            promising_but_discarded++;
             continue;
         }
 
@@ -227,7 +231,7 @@ void output(bool p, bool p2D, const vector<vector<int>> &map, int r, int c) {
     double seconds = duration.count();
 
     cout << best_cost << endl;
-    cout << visit << " " << explored << " " << leaf << " " << unfeasible << " " << not_promising << endl;
+    cout << visit << " " << explored << " " << leaf << " " << unfeasible << " " << not_promising << " " << promising_but_discarded << " " << best_solution_updated_from_leafs << " " << best_solution_updated_from_pessimistic_bound << endl;
     cout << fixed << setprecision(3) << seconds << endl;
 
     if (p2D) {
