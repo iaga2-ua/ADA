@@ -40,77 +40,82 @@ void mcp_greedy_parser(const vector<vector<string>>& parser, int minValue) {
     cout << minValue << endl;
 }
 
-int mcp_greedy(const vector<vector<int>>& matrix, int rows, int cols, vector<vector<string>>& parser, bool fromOrigin) {
+int mcp_greedy(const vector<vector<int>>& matrix, vector<vector<string>>& path, bool fromOrigin) {
+    int rows = matrix.size();
+    int cols = matrix[0].size();
     int totalCost;
     int r, c;
-    
+
     if (fromOrigin) {
         r = 0;
         c = 0;
         totalCost = matrix[0][0];
-        parser[0][0] = "x";
+        path[r][c] = "x";
 
-        while (r < rows || c < cols) {
-            if (r == rows) {
+        while (r < rows - 1 || c < cols - 1) {
+            if (r == rows - 1) {
                 totalCost += matrix[r][c + 1];
-                parser[r][c + 1] = "x";
+                path[r][c + 1] = "x";
                 c++;
-            } else if (c == cols) {
+            } else if (c == cols - 1) {
                 totalCost += matrix[r + 1][c];
-                parser[r + 1][c] = "x";
+                path[r + 1][c] = "x";
                 r++;
             } else {
-                int nextCost = min(matrix[r + 1][c], min(matrix[r][c + 1], matrix[r + 1][c + 1]));
+                int right = matrix[r][c + 1];
+                int down = matrix[r + 1][c];
+                int diag = matrix[r + 1][c + 1];
+                int nextCost = min(right, min(down, diag));
+
                 totalCost += nextCost;
-                if (nextCost == matrix[r + 1][c]) {
-                    parser[r + 1][c] = "x";
+                if (nextCost == down) {
                     r++;
-                } else if (nextCost == matrix[r][c + 1]) {
-                    parser[r][c + 1] = "x";
+                } else if (nextCost == right) {
                     c++;
                 } else {
-                    parser[r + 1][c + 1] = "x";
                     r++;
                     c++;
                 }
+                path[r][c] = "x";
             }
         }
     } else {
-        r = rows;
-        c = cols;
+        r = rows - 1;
+        c = cols - 1;
         totalCost = matrix[r][c];
-        parser[r][c] = "x";
+        path[r][c] = "x";
 
         while (r > 0 || c > 0) {
             if (r == 0) {
                 totalCost += matrix[r][c - 1];
-                parser[r][c - 1] = "x";
+                path[r][c - 1] = "x";
                 c--;
             } else if (c == 0) {
                 totalCost += matrix[r - 1][c];
-                parser[r - 1][c] = "x";
+                path[r - 1][c] = "x";
                 r--;
             } else {
-                int nextCost = min(matrix[r - 1][c], min(matrix[r][c - 1], matrix[r - 1][c - 1]));
+                int left = matrix[r][c - 1];
+                int up = matrix[r - 1][c];
+                int diag = matrix[r - 1][c - 1];
+                int nextCost = min(left, min(up, diag));
+
                 totalCost += nextCost;
-                if (nextCost == matrix[r - 1][c]) {
-                    parser[r - 1][c] = "x";
+                if (nextCost == up) {
                     r--;
-                } else if (nextCost == matrix[r][c - 1]) {
-                    parser[r][c - 1] = "x";
+                } else if (nextCost == left) {
                     c--;
                 } else {
-                    parser[r - 1][c - 1] = "x";
                     r--;
                     c--;
                 }
+                path[r][c] = "x";
             }
         }
     }
 
     return totalCost;
 }
-
 void output(bool p, const vector<vector<int>> &map, int r, int c){
 
     vector<vector<string>> parser(map.size(), vector<string>(map[0].size(), "."));
@@ -118,14 +123,14 @@ void output(bool p, const vector<vector<int>> &map, int r, int c){
     parser = x;
 
 
-    int orig = mcp_greedy(map, r-1, c-1, parser, true);
+    int orig = mcp_greedy(map, parser, true);
     parser = x;
-    int dst = mcp_greedy(map, r-1, c-1, parser ,false);
+    int dst = mcp_greedy(map, parser ,false);
     int min = dst;
 
     if(orig<=dst){
         parser = x;
-        mcp_greedy(map, r-1, c-1,parser ,true);  
+        mcp_greedy(map, parser ,true);  
         min = orig;
     }
 
