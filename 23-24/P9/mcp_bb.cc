@@ -42,6 +42,7 @@ vector<vector<int>> matrix(const string &file_name, int &r, int &c) {
     return mat;
 }
 
+//comprueba que el nodo esté dentro de la matriz
 bool inside_matrix(int i, int j, int n, int m) {
     return i >= 0 && i < n && j >= 0 && j < m;
 }
@@ -72,23 +73,40 @@ int mcp_it_matrix(const vector<vector<int>> &map, vector<vector<int>> &iterative
 
 // Cota optimista
 vector<vector<int>> optimistic_bound(const vector<vector<int>> &maze) {
-    vector<vector<int>> optimistic = maze;
     int n = maze.size();
     int m = maze[0].size();
-    vector<int> min_rows(n, INF);
-    vector<int> min_cols(m, INF);
+    vector<vector<int>> optimistic(n, vector<int>(m, 0));
 
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < m; j++) {
-            min_rows[i] = min(min_rows[i], maze[i][j]);
+    // Calcula el mínimo de cada columna
+    vector<int> min_cols(m, INF);
+    for (int j = 0; j < m; j++) {
+        for (int i = 0; i < n; i++) {
             min_cols[j] = min(min_cols[j], maze[i][j]);
         }
     }
 
+    // Calcula el mínimo de cada fila
+    vector<int> min_rows(n, INF);
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++) {
-            if (i < n - 1) optimistic[i][j] = min(optimistic[i][j], min_rows[i + 1]);
-            if (j < m - 1) optimistic[i][j] = min(optimistic[i][j], min_cols[j + 1]);
+            min_rows[i] = min(min_rows[i], maze[i][j]);
+        }
+    }
+
+    // Calcula la cota optimista para cada celda
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) {
+            int sum_min_cols = 0;
+            for (int k = j + 1; k < m; k++) {
+                sum_min_cols += min_cols[k];
+            }
+
+            int sum_min_rows = 0;
+            for (int k = i + 1; k < n; k++) {
+                sum_min_rows += min_rows[k];
+            }
+
+            optimistic[i][j] = max(sum_min_cols, sum_min_rows);
         }
     }
 
@@ -98,25 +116,23 @@ vector<vector<int>> optimistic_bound(const vector<vector<int>> &maze) {
 struct Node {
     int x, y, current_cost;
     vector<string> directions;
-    vector<vector<bool>> path;
 
-    Node(int x, int y, int cost, int n, int m)
-        : x(x), y(y), current_cost(cost), path(n, vector<bool>(m, false)) {}
+    Node(int x, int y, int cost)
+        : x(x), y(y), current_cost(cost) {}
 };
 
-void mcp_bb(const vector<vector<int>> &maze, vector<vector<int>> &iterative, vector<vector<int>> &optimistic, vector<vector<bool>> &best_path, vector<string> &best_directions, int &best_cost, int &pesimistic) {
+void mcp_bb(const vector<vector<int>> &maze, vector<vector<int>> &iterative, vector<vector<int>> &optimistic, vector<vector<bool>> &best_path, vector<string> &best_directions, int &best_cost) {
     int n = maze.size();
     int m = maze[0].size();
 
     enum Step {N, NE, E, SE, S, SW, W, NW};
 
-    auto comp = [](const Node &a, const Node &b) {
-        return a.current_cost + a.directions.size() > b.current_cost + b.directions.size();
+    auto comp = [&optimistic](const Node &a, const Node &b) {
+        return a.current_cost + optimistic[a.x][a.y] > b.current_cost + optimistic[b.x][b.y];
     };
 
     priority_queue<Node, vector<Node>, decltype(comp)> pq(comp);
-    Node start(0, 0, maze[0][0], n, m);
-    start.path[0][0] = true;
+    Node start(0, 0, maze[0][0]);
     pq.push(start);
 
     while (!pq.empty()) {
@@ -128,7 +144,6 @@ void mcp_bb(const vector<vector<int>> &maze, vector<vector<int>> &iterative, vec
             leaf++;
             if (node.current_cost <= best_cost) {
                 best_cost = node.current_cost;
-                best_path = node.path;
                 best_directions = node.directions;
                 best_solution_updated_from_leafs++;
                 explored++;
@@ -144,7 +159,7 @@ void mcp_bb(const vector<vector<int>> &maze, vector<vector<int>> &iterative, vec
             continue;
         }
 
-        if (node.current_cost + optimistic[node.x][node.y] >= best_cost) {
+        if (node.current_cost + optimistic[node.x][node.y] > best_cost) {
             promising_but_discarded++;
             continue;
         }
@@ -168,22 +183,42 @@ void mcp_bb(const vector<vector<int>> &maze, vector<vector<int>> &iterative, vec
             int newx = node.x + incx;
             int newy = node.y + incy;
 
-            if (inside_matrix(newx, newy, n, m) && !node.path[newx][newy]) {
-                Node next(newx, newy, node.current_cost + maze[newx][newy], n, m);
-                next.directions = node.directions;
-                next.directions.push_back(direction);
-                next.path = node.path;
-                next.path[newx][newy] = true;
-                pq.push(next);
-                explored++;
+            if (inside_matrix(newx, newy, n, m)) {
+                int new_cost = node.current_cost + maze[newx][newy];
+                
+                // Comprueba si el nodo es prometedor
+                if (new_cost + optimistic[newx][newy] <= best_cost) {
+                    Node next(newx, newy, new_cost);
+                    next.directions = node.directions;
+                    next.directions.push_back(direction);
+                    pq.push(next);
+                    explored++;
+                } else {
+                    not_promising++;
+                }
             } else {
                 unfeasible++;
             }
         }
     }
+
+    // Marcar el mejor camino
+    int x = 0, y = 0;
+    best_path[x][y] = true;
+    for (const auto &dir : best_directions) {
+        if (dir == "N") { x -= 1; y += 0; }
+        else if (dir == "NE") { x -= 1; y += 1; }
+        else if (dir == "E") { x += 0; y += 1; }
+        else if (dir == "SE") { x += 1; y += 1; }
+        else if (dir == "S") { x += 1; y += 0; }
+        else if (dir == "SW") { x += 1; y -= 1; }
+        else if (dir == "W") { x += 0; y -= 1; }
+        else if (dir == "NW") { x -= 1; y -= 1; }
+        best_path[x][y] = true;
+    }
 }
 
-void mcp_bb_parser(const vector<vector<int>> &maze, const vector<vector<bool>> best_path) {
+void mcp_bb_parser(const vector<vector<int>> &maze, const vector<vector<bool>> &best_path) {
     int cost = 0;
     for (int i = 0; i < maze.size(); i++) {
         for (int j = 0; j < maze[0].size(); j++) {
@@ -217,14 +252,12 @@ void print_directions(const vector<string> &directions) {
 void output(bool p, bool p2D, const vector<vector<int>> &map, int r, int c) {
     vector<vector<int>> iterative(r, vector<int>(c, INF));
     int shortest_path_iterative = mcp_it_matrix(map, iterative);
-    int pesimistic = shortest_path_iterative;
-
     vector<vector<bool>> best_path(r, vector<bool>(c, false));
     vector<string> best_directions;
 
     vector<vector<int>> optimistic = optimistic_bound(map);
     int best_cost = iterative[r-1][c-1];
-    mcp_bb(map, iterative, optimistic, best_path, best_directions, best_cost, pesimistic);
+    mcp_bb(map, iterative, optimistic, best_path, best_directions, best_cost);
 
     cout << best_cost << endl;
     cout << visit << " " << explored << " " << leaf << " " << unfeasible << " " << not_promising << " " << promising_but_discarded << " " << best_solution_updated_from_leafs << " " << best_solution_updated_from_pessimistic_bound << endl;
